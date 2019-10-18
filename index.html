@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <meta name="description" content="A minimal Pomodoro Timer wrapped up as a Progressive Web App">
+    <meta name="keywords" content="PWA, Progressive Web App, Pomodoro, Timer, Offline, Tomato, Tomadoro, Productivity">
+
+    <link rel="manifest" href="manifest.json">
+
+    <meta name="theme-color" content="#ff6347" />
+    <meta name="mobile-web-app-capable" content="yes">
+
+    <link rel="icon" href="icon.png" sizes="256x256">
+
+    <meta name="apple-mobile-web-app-title" content="Tomadoro">
+    <meta name="apple-mobile-web-app-status-bar-style" content="tomato">
+    <link rel="apple-touch-icon" href="icon.png">
+    <link rel="apple-touch-startup-image" href="icon.png">
+
+    <meta name="application-name" content="Tomadoro">
+    <meta name="msapplication-TileImage" content="icon.png">
+    <meta name="msapplication-TileColor" content="#ff6347">
+    <meta name="msapplication-tooltip" content="Pomodoro Timer">
+    <meta name="msapplication-starturl" content="/">
+
+    <meta name="full-screen" content="yes">
+    <meta name="browsermode" content="application">
+
+    <title>Tomadoro</title>
+
+    <style>
+        html,
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            min-height: 265px;
+            user-select: none;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            main {
+                background-color: #242424;
+                color: whitesmoke;
+            }
+        }
+
+        @media (prefers-color-scheme: light) {
+            main {
+                background-color: whitesmoke;
+                color: #242424;
+            }
+        }
+
+        main {
+            height: 100vh;
+            overflow: hidden;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            padding: 1em;
+            background-color: #242424;
+            color: whitesmoke;
+        }
+
+        #title {
+            font-weight: bold;
+            font-size: 1.5em;
+            text-align: center;
+            opacity: 0.5;
+            z-index: 1;
+        }
+
+        #content {
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            align-items: center;
+            flex: 1;
+            box-sizing: border-box;
+            padding: 1em 0;
+            z-index: 0;
+        }
+
+        #action {
+            position: fixed;
+            top: 100vh;
+            right: 0;
+            bottom: 0;
+            left: 0;
+            transition: all .25s ease-in-out;
+            z-index: -1;
+        }
+
+        #action.play {
+            background-color: tomato;
+        }
+
+        #action.free {
+            background-color: mediumseagreen;
+        }
+
+        #counter {
+            font-size: 4em;
+            font-weight: bold;
+            flex: 1;
+            display: flex;
+            align-items: center;
+        }
+
+        #trigger {
+            width: 4em;
+            height: 4em;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-sizing: border-box;
+        }
+
+        #trigger>svg {
+            display: none;
+            flex: 1;
+        }
+
+        #trigger>svg.active {
+            display: block;
+        }
+    </style>
+</head>
+
+<body>
+    <main>
+        <div id="title">Tomadoro</div>
+        <div id="content">
+            <div id="action"></div>
+            <div id="counter">
+                <span id="min"></span>:<span id="sec"></span>
+            </div>
+            <div id="trigger">
+                <svg id="play" class="active" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <polygon points="10 8 16 12 10 16 10 8"></polygon>
+                </svg>
+                <svg id="stop" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <rect x="9" y="9" width="6" height="6"></rect>
+                </svg>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        (function () {
+            var actionEl = document.getElementById("action"),
+                playEl = document.getElementById("play"),
+                stopEl = document.getElementById("stop"),
+                minEl = document.getElementById("min"),
+                secEl = document.getElementById("sec"),
+                playMin = 25,
+                freeMin = 5,
+                actionHandler = null
+
+            playEl.addEventListener("click", () => startPlay())
+            stopEl.addEventListener("click", () => reset())
+
+            reset()
+
+            function start(actionType, time) {
+                actionEl.style.top = "0px"
+                actionEl.className = actionType
+                var pxUnit = document.body.clientHeight / time / 60,
+                    actionCounter = 0,
+                    second = 0,
+                    minute = time
+
+                actionHandler = setInterval(() => {
+                    if (second == 0) {
+                        minEl.innerText = getNum(--minute)
+                        second = 60
+                    }
+
+                    secEl.innerText = getNum(--second)
+                    actionEl.style.top = `${parseFloat(/\d+[\.\d]*/.exec(actionEl.style.top)[0]) + pxUnit}px`
+
+                    if (++actionCounter == time * 60) {
+                        togglePlayFree(actionType)
+                    }
+                }, 1000)
+            }
+
+            function togglePlayFree(currentAction) {
+                switch (currentAction) {
+                    case "play":
+                        stop()
+                        startFree()
+                        break
+                    case "free":
+                        reset()
+                        break
+                }
+            }
+
+            function startFree() {
+                start("free", freeMin)
+            }
+
+            function startPlay() {
+                playEl.removeAttribute("class")
+                stopEl.setAttribute("class", "active")
+                start("play", playMin)
+            }
+
+            function stop() {
+                clearInterval(actionHandler)
+                actionEl.removeAttribute("style")
+                actionEl.removeAttribute("class")
+            }
+
+            function reset() {
+                stop()
+                stopEl.removeAttribute("class")
+                playEl.setAttribute("class", "active")
+                minEl.innerText = getNum(playMin)
+                secEl.innerText = getNum(0)
+            }
+
+            function getNum(n) {
+                return n < 10 ? `0${n}` : n
+            }
+
+            if ("serviceWorker" in navigator)
+                navigator.serviceWorker.register("sw.js")
+        })()
+    </script>
+</body>
+
+</html>
